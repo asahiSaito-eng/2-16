@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>学校の座席表</title>
+  <style>
+    @page { size: A4 landscape; margin: 10mm; }
+    body { font-family: sans-serif; margin: 0; padding: 0 0 30mm; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; box-sizing: border-box; }
+    .layout-wrapper { display: flex; flex-direction: column; align-items: center; transition: none; }
+    .rotated .layout-wrapper { transform: rotate(180deg); }
+    .rotated .layout-wrapper .seat,
+    .rotated .layout-wrapper .blackboard { transform: rotate(180deg); }
+    .grid-container { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4mm; width: 100%; max-width: 265mm; margin: 10mm 0; padding: 0 5mm; box-sizing: border-box; }
+    .seat { width: 100%; aspect-ratio: 7 / 3; border: 0.3mm solid #000; box-sizing: border-box; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; padding: 2mm; overflow: hidden; }
+    .number-input { width: 20%; height: 90%; font-size: 10pt; text-align: center; background: #f0f0f0; border: none; margin-right: 4mm; color: #000; }
+    .number-input::placeholder { color: #aaa; }
+    .name-display { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; white-space: normal; text-overflow: ellipsis; }
+    .name-display .name { font-weight: bold; font-size: 10.5pt; line-height: 1.1; }
+    .name-display .kana { font-size: 9pt; color: #444; line-height: 1.1; }
+    .blackboard { width: 100%; max-width: 265mm; border: 0.4mm solid black; text-align: center; font-weight: bold; padding: 4mm; box-sizing: border-box; font-size: 18pt; }
+    .buttons { margin-top: 10px; position: sticky; bottom: 0; background: #fff; padding: 10px 0; z-index: 10; }
+    @media print { .buttons, h1 { display: none; } input { border: none; background: none; } body { align-items: center; justify-content: flex-start; padding-top: 20mm; padding-bottom: 0; min-height: auto; } }
+  </style>
+</head>
+<body>
+  <h1>1-16座席表</h1>
+  <div class="layout-wrapper" id="layout-wrapper">
+    <div class="grid-container" id="seating-grid"></div>
+    <div class="blackboard">黒板</div>
+  </div>
+  <div class="buttons">
+    <button onclick="assignRandomSeatsSequentially()">ルーレット</button>
+    <button onclick="restoreOriginalSeats()">元に戻す</button>
+    <button onclick="saveSeatAssignment()">固定割り当て保存</button>
+    <button onclick="rotateLayout()">レイアウトを180度回転</button>
+    <button onclick="window.print()">印刷 / PDF出力</button>
+    <button onclick="window.open('fixed.html', '_blank')">###</button>
+  </div>
+
+<script>
+const grid = document.getElementById("seating-grid");
+const layoutWrapper = document.getElementById("layout-wrapper");
+
+const students = [
+  { "number": 1, "name": "相坂美怜", "kana": "アイサカ ミサト" },
+  { "number": 2, "name": "浅川優希", "kana": "アサカワ ユウキ" },
+  { "number": 3, "name": "市川右馨", "kana": "イチカワ ウキョウ" },
+  { "number": 4, "name": "江口結唯", "kana": "エグチ ユイ" },
+  { "number": 5, "name": "奥田千尋", "kana": "オクダ チヒロ" },
+  { "number": 6, "name": "奥野尚", "kana": "オクノ ナオ" },
+  { "number": 7, "name": "尾澤侑真", "kana": "オザワ ユウマ" },
+  { "number": 8, "name": "春日琉希", "kana": "カスガ リュウキ" },
+  { "number": 9, "name": "片倉仁美", "kana": "カタクラ ヒトミ" },
+  { "number": 10, "name": "加藤結愛", "kana": "カトウ ユメ" },
+  { "number": 11, "name": "金谷駿", "kana": "カナヤ シュン" },
+  { "number": 12, "name": "郷原緒", "kana": "ゴウハラ イトハ" },
+  { "number": 13, "name": "小林芽以", "kana": "コバヤシ メイ" },
+  { "number": 14, "name": "齋藤旭", "kana": "サイトウ アサヒ" },
+  { "number": 15, "name": "酒寄克典", "kana": "サカヨリ カツノリ" },
+  { "number": 16, "name": "佐川怜", "kana": "サガワ レイ" },
+  { "number": 17, "name": "櫻井陸翔", "kana": "サクライ リクト" },
+  { "number": 18, "name": "佐藤直紀", "kana": "サトウ ナオキ" },
+  { "number": 19, "name": "鈴木ほの", "kana": "スズキ ホノ" },
+  { "number": 20, "name": "関桃香", "kana": "セキ モモカ" },
+  { "number": 21, "name": "関根香穂", "kana": "セキネ カホ" },
+  { "number": 22, "name": "竹内捺姫", "kana": "タケウチ ナツキ" },
+  { "number": 23, "name": "塚谷柊斗", "kana": "ツカタニ シュウト" },
+  { "number": 24, "name": "土田龍虎", "kana": "ツチダ リュウト" },
+  { "number": 25, "name": "中泉佑悠", "kana": "ナカイズミ ユウリ" },
+  { "number": 26, "name": "中田桜輔", "kana": "ナカダ オウスケ" },
+  { "number": 27, "name": "中野来瑠美", "kana": "ナカノ クルミ" },
+  { "number": 28, "name": "仁科梨菜", "kana": "ニシナ リナ" },
+  { "number": 29, "name": "端山日々萌", "kana": "ハヤマ ヒビキ" },
+  { "number": 30, "name": "舩張蒼良", "kana": "フナバリ ソラ" },
+  { "number": 31, "name": "古谷優歩", "kana": "フルタニ ユウホ" },
+  { "number": 32, "name": "松島好希", "kana": "マツシマ コウキ" },
+  { "number": 33, "name": "松本瑠唯", "kana": "マツモト ルイ" },
+  { "number": 34, "name": "横川遥城", "kana": "ヨコカワ ハルキ" }
+];
+
+const layout = [5, 6, 6, 6, 6, 5];
+const maxRows = Math.max(...layout);
+
+for (let row = 0; row < maxRows; row++) {
+  for (let col = 0; col < layout.length; col++) {
+    const gridCell = document.createElement("div");
+    if (row < layout[col]) {
+      gridCell.className = "seat";
+      const numberInput = document.createElement("input");
+      numberInput.type = "text";
+      numberInput.className = "number-input";
+      numberInput.placeholder = "#";
+
+      const nameDisplay = document.createElement("div");
+      nameDisplay.className = "name-display";
+      const nameLine = document.createElement("div");
+      nameLine.className = "name";
+      const kanaLine = document.createElement("div");
+      kanaLine.className = "kana";
+      nameDisplay.append(nameLine, kanaLine);
+      gridCell.append(numberInput, nameDisplay);
+    } else {
+      gridCell.className = "seat";
+      gridCell.style.visibility = "hidden";
+    }
+    grid.appendChild(gridCell);
+  }
+}
+
+const seats = document.querySelectorAll(".seat input.number-input");
+let originalAssignments = [];
+
+function getFixedSeats() {
+  return JSON.parse(localStorage.getItem("childFixedSeats") || "{}");
+}
+
+function updateDisplay(input, index) {
+  const val = input.value;
+  const student = students.find(s => s.number === parseInt(val));
+  const nameLine = input.nextElementSibling.querySelector(".name");
+  const kanaLine = input.nextElementSibling.querySelector(".kana");
+  if (val === "") {
+    nameLine.textContent = "";
+    kanaLine.textContent = "";
+    input.placeholder = (index + 1).toString();
+  } else if (student) {
+    nameLine.textContent = student.name;
+    kanaLine.textContent = student.kana;
+    input.placeholder = "";
+  } else {
+    nameLine.textContent = "";
+    kanaLine.textContent = "";
+    input.placeholder = "";
+  }
+}
+
+seats.forEach((input, index) => {
+  input.addEventListener("input", () => updateDisplay(input, index));
+  updateDisplay(input, index);
+});
+
+function saveOriginalSeats() {
+  originalAssignments = Array.from(seats).map(input => input.value);
+}
+
+function restoreOriginalSeats() {
+  seats.forEach((input, index) => {
+    input.value = originalAssignments[index] || "";
+    updateDisplay(input, index);
+  });
+}
+
+function saveSeatAssignment() {
+  const assignment = Array.from(seats).map(input => input.value);
+  localStorage.setItem("savedSeatAssignment", JSON.stringify(assignment));
+  alert("座席の割り当てを保存しました。");
+}
+
+function loadSeatAssignment() {
+  const saved = JSON.parse(localStorage.getItem("savedSeatAssignment") || "[]");
+  if (saved.length > 0) {
+    seats.forEach((input, index) => {
+      input.value = saved[index] || "";
+      updateDisplay(input, index);
+    });
+  }
+}
+
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+async function assignRandomSeatsSequentially() {
+  const fixedSeats = getFixedSeats();
+  const assignedNumbers = new Set();
+  const allNumbers = students.map(s => s.number);
+  let availableNumbers = [...allNumbers];
+
+  seats.forEach((input, i) => {
+    input.value = "";
+    updateDisplay(input, i);
+  });
+
+  await new Promise(r => setTimeout(r, 300));
+
+  for (let i = 0; i < seats.length; i++) {
+    if (fixedSeats.hasOwnProperty(i)) {
+      const fixedNumber = fixedSeats[i];
+      await flashFinalNumber(seats[i], fixedNumber);
+      assignedNumbers.add(fixedNumber);
+      availableNumbers = availableNumbers.filter(n => n !== fixedNumber);
+    } else {
+      const remaining = availableNumbers.filter(n => !assignedNumbers.has(n));
+      if (remaining.length <= 3) {
+        const finalNum = await flashLastThree(seats[i], remaining);
+        assignedNumbers.add(finalNum);
+        availableNumbers = availableNumbers.filter(n => n !== finalNum);
+      } else {
+        for (let j = 0; j < 15; j++) {
+          const temp = remaining[Math.floor(Math.random() * remaining.length)];
+          seats[i].value = temp;
+          updateDisplay(seats[i], i);
+          await new Promise(r => setTimeout(r, 60));
+        }
+        const finalNum = parseInt(seats[i].value);
+        assignedNumbers.add(finalNum);
+        availableNumbers = availableNumbers.filter(n => n !== finalNum);
+        updateDisplay(seats[i], i);
+      }
+    }
+    await new Promise(r => setTimeout(r, 300));
+  }
+}
+
+async function flashFinalNumber(input, finalNumber) {
+  const flashCount = 12;
+  for (let i = 0; i < flashCount; i++) {
+    const fake = Math.floor(Math.random() * 34) + 1;
+    input.value = fake;
+    updateDisplay(input, Array.from(seats).indexOf(input));
+    await new Promise(r => setTimeout(r, 100));
+  }
+  input.value = finalNumber;
+  updateDisplay(input, Array.from(seats).indexOf(input));
+}
+
+async function flashLastThree(input, options) {
+  const flashCount = 12;
+  for (let i = 0; i < flashCount; i++) {
+    const index = i % options.length;
+    input.value = options[index];
+    updateDisplay(input, Array.from(seats).indexOf(input));
+    await new Promise(r => setTimeout(r, 200));
+  }
+  const finalIndex = Math.floor(Math.random() * options.length);
+  const finalNum = options[finalIndex];
+  input.value = finalNum;
+  updateDisplay(input, Array.from(seats).indexOf(input));
+  return finalNum;
+}
+
+function rotateLayout() {
+  document.body.classList.toggle("rotated");
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  loadSeatAssignment();
+});
+</script>
+
+
+</body>
+</html>
