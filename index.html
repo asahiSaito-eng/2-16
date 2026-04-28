@@ -192,16 +192,15 @@
     <button class="secondary" onclick="window.print()">印刷 / PDF出力</button>
   </div>
 
-  <!-- 固定席設定モーダル -->
   <div class="modal-overlay" id="fixedSeatModal">
     <div class="modal-content">
-      <h2>固定席設定</h2>
-      <p>座席番号（1〜33）と生徒番号（1〜33）をCSV形式で入力し、「保存」してください。</p>
+      <h2>print.setting</h2>
+      <p>A4,wide no-padding</p>
       <textarea id="csvArea" rows="10" placeholder="例:&#10;1,5&#10;3,12"></textarea>
       <div class="modal-buttons">
-        <button class="danger" onclick="clearFixed()">全解除</button>
-        <button class="secondary" onclick="closeModal()">キャンセル</button>
-        <button onclick="saveFixed()">保存</button>
+        <button class="danger" onclick="clearFixed()">clear</button>
+        <button class="secondary" onclick="closeModal()">false</button>
+        <button onclick="saveFixed()">ture</button>
       </div>
     </div>
   </div>
@@ -214,13 +213,13 @@ const layoutWrapper = document.getElementById("layout-wrapper");
 // 33人分の新しい名簿データ
 const students = [
   { "number": 1, "name": "池杉 美優", "kana": "イケスギ ミユ" },
-  { "number": 2, "name": "石塚 悠睦", "kana": "イシヅカ ハルチカ" },
+  { "number": 2, "name": "石塚 悠睦", "kana": "イシツカ ハルチカ" },
   { "number": 3, "name": "市川 右馨", "kana": "イチカワ ウキョウ" },
   { "number": 4, "name": "尾澤 侑真", "kana": "オザワ ユウマ" },
   { "number": 5, "name": "春日 琉希", "kana": "カスガ リュウキ" },
   { "number": 6, "name": "加藤 結愛", "kana": "カトウ ユメ" },
   { "number": 7, "name": "金子 悠橙", "kana": "カネコ ユウト" },
-  { "number": 8, "name": "河原 佑樹", "kana": "カワムラ ユウキ" },
+  { "number": 8, "name": "河原 佑樹", "kana": "カワハラ ユウキ" },
   { "number": 9, "name": "岸 大晴", "kana": "キシ タイセイ" },
   { "number": 10, "name": "郷原 緒", "kana": "ゴウハラ イトハ" },
   { "number": 11, "name": "五来 美貴", "kana": "ゴライ ミキ" },
@@ -234,7 +233,7 @@ const students = [
   { "number": 19, "name": "竹内 捺姫", "kana": "タケウチ ナツキ" },
   { "number": 20, "name": "辻 瑛介", "kana": "ツジ エイスケ" },
   { "number": 21, "name": "中泉 佑悠", "kana": "ナカイズミ ユウリ" },
-  { "number": 22, "name": "中田 桜輔", "kana": "ナカタ オウスケ" },
+  { "number": 22, "name": "中田 桜輔", "kana": "ナカダ オウスケ" },
   { "number": 23, "name": "中野 来瑠美", "kana": "ナカノ クルミ" },
   { "number": 24, "name": "仁科 梨菜", "kana": "ニシナ リナ" },
   { "number": 25, "name": "端山 日々萌", "kana": "ハヤマ ヒビキ" },
@@ -248,7 +247,6 @@ const students = [
   { "number": 33, "name": "横川 遙城", "kana": "ヨコカワ ハルキ" }
 ];
 
-// 左から2列目の最後尾（31番目）を減らし、合計33席にするレイアウト
 const layout = [5, 5, 6, 6, 6, 5];
 const maxRows = Math.max(...layout);
 
@@ -419,7 +417,6 @@ function rotateLayout() {
   document.body.classList.toggle("rotated");
 }
 
-// --- 固定席設定（モーダル）ロジック ---
 const modal = document.getElementById('fixedSeatModal');
 const csvArea = document.getElementById('csvArea');
 
@@ -431,10 +428,9 @@ function handleTitleClick() {
   
   if (titleClickCount >= 5) {
     openModal();
-    titleClickCount = 0; // 開いた後はリセット
+    titleClickCount = 0; 
   }
   
-  // 2秒間連続してクリックされなかったらカウントをリセット
   clearTimeout(titleClickTimer);
   titleClickTimer = setTimeout(() => {
     titleClickCount = 0;
@@ -468,14 +464,14 @@ function saveFixed(){
     }
   });
   localStorage.setItem("childFixedSeats", JSON.stringify(obj));
-  alert("固定席情報を保存しました。");
+  alert("setting print");
   closeModal();
 }
 
 function clearFixed(){
   localStorage.removeItem("childFixedSeats");
   csvArea.value = "";
-  alert("固定席情報をクリアしました。");
+  alert("clearing set");
 }
 
 // 初期化
