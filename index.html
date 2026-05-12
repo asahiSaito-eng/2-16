@@ -47,7 +47,6 @@
       padding: 2mm; 
       overflow: hidden; 
       background-color: #fff;
-      /* 丸みを消して長方形に */
       border-radius: 0;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
       transition: transform 0.5s ease;
@@ -122,10 +121,11 @@
     button:hover { background-color: #0056b3; }
     button.secondary { background-color: #6c757d; }
     button.secondary:hover { background-color: #5a6268; }
+    button.mode-btn { background-color: #28a745; }
+    button.mode-btn:hover { background-color: #218838; }
     button.danger { background-color: #dc3545; }
     button.danger:hover { background-color: #c82333; }
 
-    /* モーダル用スタイル */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -177,7 +177,6 @@
   </style>
 </head>
 <body>
-  <!-- タイトルを5回クリックで固定席設定（隠しボタン） -->
   <h1 onclick="handleTitleClick()" style="user-select: none;">2-17座席表</h1>
   <div class="layout-wrapper" id="layout-wrapper">
     <div class="grid-container" id="seating-grid"></div>
@@ -185,7 +184,9 @@
   </div>
   
   <div class="buttons">
-    <button onclick="assignRandomSeatsSequentially()">ルーレット</button>
+    <button id="modeToggleBtn" class="mode-btn" onclick="toggleMode()">モード: 1席ずつ</button>
+    <button onclick="startRoulette()">ルーレット</button>
+    <button class="danger" onclick="clearAllSeats()">clear</button>
     <button class="secondary" onclick="restoreOriginalSeats()">元に戻す</button>
     <button class="secondary" onclick="saveSeatAssignment()">固定割り当て保存</button>
     <button class="secondary" onclick="rotateLayout()">レイアウトを180度回転</button>
@@ -196,21 +197,20 @@
     <div class="modal-content">
       <h2>print.setting</h2>
       <p>A4,wide no-padding</p>
-      <textarea id="csvArea" rows="10" placeholder="例:&#10;1,5&#10;3,12"></textarea>
+      <textarea id="csvArea" rows="10" placeholder="ex:&#10;A4,1&#10;B4,2"></textarea>
       <div class="modal-buttons">
         <button class="danger" onclick="clearFixed()">clear</button>
         <button class="secondary" onclick="closeModal()">false</button>
+        <button class="secondary" onclick="exportCurrentToCsv()">storeage</button>
         <button onclick="saveFixed()">ture</button>
       </div>
     </div>
   </div>
 
 <script>
-// --- 座席表ロジック ---
 const grid = document.getElementById("seating-grid");
 const layoutWrapper = document.getElementById("layout-wrapper");
 
-// 33人分の新しい名簿データ
 const students = [
   { "number": 1, "name": "池杉 美優", "kana": "イケスギ ミユ" },
   { "number": 2, "name": "石塚 悠睦", "kana": "イシツカ ハルチカ" },
@@ -226,7 +226,7 @@ const students = [
   { "number": 12, "name": "齋藤 旭", "kana": "サイトウ アサヒ" },
   { "number": 13, "name": "榊原 湧斗", "kana": "サカキバラ ユウト" },
   { "number": 14, "name": "酒寄 克典", "kana": "サカヨリ カツノリ" },
-  { "number": 15, "name": "櫻井 陸翔", "kana": "サクライ リク" },
+  { "number": 15, "name": "櫻井 陸翔", "kana": "サクライ リクト" },
   { "number": 16, "name": "笹沼 瑠凪", "kana": "ササヌマ ルナ" },
   { "number": 17, "name": "関 桃香", "kana": "セキ モモカ" },
   { "number": 18, "name": "関根 香穂", "kana": "セキネ カホ" },
@@ -250,7 +250,6 @@ const students = [
 const layout = [5, 5, 6, 6, 6, 5];
 const maxRows = Math.max(...layout);
 
-// グリッド生成
 for (let row = 0; row < maxRows; row++) {
   for (let col = 0; col < layout.length; col++) {
     const gridCell = document.createElement("div");
@@ -280,6 +279,16 @@ for (let row = 0; row < maxRows; row++) {
 const seats = document.querySelectorAll(".seat input.number-input");
 let originalAssignments = [];
 
+// モード管理用フラグ (0: 1席ずつ, 1: 一括アニメあり, 2: 一括アニメなし)
+let currentMode = 0;
+const modeNames = ["モード: 1席ずつ", "モード: 一括（アニメあり）", "モード: 一括（アニメなし）"];
+
+function toggleMode() {
+  currentMode = (currentMode + 1) % 3;
+  const btn = document.getElementById("modeToggleBtn");
+  btn.textContent = modeNames[currentMode];
+}
+
 function updateDisplay(input, index) {
   const val = input.value;
   const student = students.find(s => s.number === parseInt(val));
@@ -300,7 +309,6 @@ function updateDisplay(input, index) {
   }
 }
 
-// 初期化とイベントリスナー設定
 seats.forEach((input, index) => {
   input.addEventListener("input", () => {
     updateDisplay(input, index);
@@ -320,6 +328,14 @@ function restoreOriginalSeats() {
   });
 }
 
+function clearAllSeats() {
+  saveOriginalSeats();
+  seats.forEach((input, index) => {
+    input.value = "";
+    updateDisplay(input, index);
+  });
+}
+
 function saveSeatAssignment() {
   const assignment = Array.from(seats).map(input => input.value);
   localStorage.setItem("savedSeatAssignment", JSON.stringify(assignment));
@@ -333,7 +349,7 @@ function loadSeatAssignment() {
       input.value = saved[index] || "";
       updateDisplay(input, index);
     });
-    saveOriginalSeats(); // ロードした状態をオリジナルとして保存
+    saveOriginalSeats();
   }
 }
 
@@ -341,15 +357,26 @@ function getFixedSeats() {
   return JSON.parse(localStorage.getItem("childFixedSeats") || "{}");
 }
 
+// ルーレット開始の分岐処理
+async function startRoulette() {
+  if (currentMode === 0) {
+    await assignRandomSeatsSequentially();
+  } else if (currentMode === 1) {
+    await assignRandomSeatsAllAtOnce(true);
+  } else if (currentMode === 2) {
+    await assignRandomSeatsAllAtOnce(false);
+  }
+}
+
+// モード：1席ずつ
 async function assignRandomSeatsSequentially() {
-  saveOriginalSeats(); // ルーレットを回す前の状態を保存（元に戻す用）
+  saveOriginalSeats(); 
   
   const fixedSeats = getFixedSeats();
   const assignedNumbers = new Set();
   const allNumbers = students.map(s => s.number);
   let availableNumbers = [...allNumbers];
 
-  // 一旦クリア
   seats.forEach((input, i) => {
     input.value = "";
     updateDisplay(input, i);
@@ -382,14 +409,65 @@ async function assignRandomSeatsSequentially() {
         updateDisplay(seats[i], i);
       }
     }
-    await new Promise(r => setTimeout(r, 100)); // 少し早めに調整
+    await new Promise(r => setTimeout(r, 100)); 
   }
+}
+
+// モード：一括（アニメーション有無を選択可能に）
+async function assignRandomSeatsAllAtOnce(withAnimation) {
+  saveOriginalSeats(); 
+  
+  const fixedSeats = getFixedSeats();
+  const assignedNumbers = new Set();
+  const allNumbers = students.map(s => s.number);
+  let availableNumbers = [...allNumbers];
+
+  const finalAssignments = new Array(seats.length).fill("");
+
+  // 固定席の決定
+  for (let i = 0; i < seats.length; i++) {
+    if (fixedSeats.hasOwnProperty(i)) {
+      finalAssignments[i] = fixedSeats[i];
+      assignedNumbers.add(fixedSeats[i]);
+      availableNumbers = availableNumbers.filter(n => n !== fixedSeats[i]);
+    }
+  }
+
+  // 残りの席をランダムに割り当て
+  for (let i = 0; i < seats.length; i++) {
+    if (finalAssignments[i] === "") {
+      if (availableNumbers.length > 0) {
+        const randomIndex = Math.floor(Math.random() * availableNumbers.length);
+        const num = availableNumbers[randomIndex];
+        finalAssignments[i] = num;
+        availableNumbers.splice(randomIndex, 1);
+      }
+    }
+  }
+
+  if (withAnimation) {
+    // 全席同時にシャッフルアニメーション
+    const flashCount = 15;
+    for (let flash = 0; flash < flashCount; flash++) {
+      seats.forEach((input, i) => {
+        input.value = Math.floor(Math.random() * 33) + 1; // ダミーの数字
+        updateDisplay(input, i);
+      });
+      await new Promise(r => setTimeout(r, 60));
+    }
+  }
+
+  // 最終結果を一斉に表示
+  seats.forEach((input, i) => {
+    input.value = finalAssignments[i] || "";
+    updateDisplay(input, i);
+  });
 }
 
 async function flashFinalNumber(input, finalNumber) {
   const flashCount = 12;
   for (let i = 0; i < flashCount; i++) {
-    const fake = Math.floor(Math.random() * 33) + 1; // フェイク乱数も33までに変更
+    const fake = Math.floor(Math.random() * 33) + 1; 
     input.value = fake;
     updateDisplay(input, Array.from(seats).indexOf(input));
     await new Promise(r => setTimeout(r, 80));
@@ -438,7 +516,6 @@ function handleTitleClick() {
 }
 
 function openModal() {
-  // 保存されている設定を読み込んで表示
   try{
     const obj = getFixedSeats();
     const lines = Object.entries(obj).map(([i,n]) => `${parseInt(i)+1},${n}`);
@@ -450,6 +527,17 @@ function openModal() {
 
 function closeModal() {
   modal.classList.remove('active');
+}
+
+function exportCurrentToCsv() {
+  const lines = [];
+  seats.forEach((input, index) => {
+    const val = input.value.trim();
+    if (val !== "") {
+      lines.push(`${index + 1},${val}`);
+    }
+  });
+  csvArea.value = lines.join("\n");
 }
 
 function saveFixed(){
@@ -474,7 +562,6 @@ function clearFixed(){
   alert("clearing set");
 }
 
-// 初期化
 window.addEventListener("DOMContentLoaded", () => {
   loadSeatAssignment();
 });
