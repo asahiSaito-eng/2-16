@@ -9,7 +9,7 @@
     body { 
       font-family: sans-serif; 
       margin: 0; 
-      padding: 0 0 30mm; 
+      padding: 0 0 30mm;
       display: flex; 
       flex-direction: column; 
       align-items: center; 
@@ -218,7 +218,7 @@ const students = [
   { "number": 4, "name": "尾澤 侑真", "kana": "オザワ ユウマ" },
   { "number": 5, "name": "春日 琉希", "kana": "カスガ リュウキ" },
   { "number": 6, "name": "加藤 結愛", "kana": "カトウ ユメ" },
-  { "number": 7, "name": "金子 悠橙", "kana": "カネコ ユウト" },
+  // 7番（金子 悠橙）を欠番にして削除
   { "number": 8, "name": "河原 佑樹", "kana": "カワハラ ユウキ" },
   { "number": 9, "name": "岸 大晴", "kana": "キシ タイセイ" },
   { "number": 10, "name": "郷原 緒", "kana": "ゴウハラ イトハ" },
@@ -247,7 +247,11 @@ const students = [
   { "number": 33, "name": "横川 遙城", "kana": "ヨコカワ ハルキ" }
 ];
 
-const layout = [5, 5, 6, 6, 6, 5];
+// ルーレット時のダミー数字などに使うため、存在する出席番号だけを抽出
+const allNumbers = students.map(s => s.number);
+
+// 座席の列を [5, 5, 6, 6, 5, 5] に変更（合計32席）
+const layout = [5, 5, 6, 6, 5, 5];
 const maxRows = Math.max(...layout);
 
 for (let row = 0; row < maxRows; row++) {
@@ -374,7 +378,6 @@ async function assignRandomSeatsSequentially() {
   
   const fixedSeats = getFixedSeats();
   const assignedNumbers = new Set();
-  const allNumbers = students.map(s => s.number);
   let availableNumbers = [...allNumbers];
 
   seats.forEach((input, i) => {
@@ -419,7 +422,6 @@ async function assignRandomSeatsAllAtOnce(withAnimation) {
   
   const fixedSeats = getFixedSeats();
   const assignedNumbers = new Set();
-  const allNumbers = students.map(s => s.number);
   let availableNumbers = [...allNumbers];
 
   const finalAssignments = new Array(seats.length).fill("");
@@ -446,11 +448,11 @@ async function assignRandomSeatsAllAtOnce(withAnimation) {
   }
 
   if (withAnimation) {
-    // 全席同時にシャッフルアニメーション
+    // 全席同時にシャッフルアニメーション (欠番が出ないように allNumbers からランダム取得)
     const flashCount = 15;
     for (let flash = 0; flash < flashCount; flash++) {
       seats.forEach((input, i) => {
-        input.value = Math.floor(Math.random() * 33) + 1; // ダミーの数字
+        input.value = allNumbers[Math.floor(Math.random() * allNumbers.length)];
         updateDisplay(input, i);
       });
       await new Promise(r => setTimeout(r, 60));
@@ -467,7 +469,7 @@ async function assignRandomSeatsAllAtOnce(withAnimation) {
 async function flashFinalNumber(input, finalNumber) {
   const flashCount = 12;
   for (let i = 0; i < flashCount; i++) {
-    const fake = Math.floor(Math.random() * 33) + 1; 
+    const fake = allNumbers[Math.floor(Math.random() * allNumbers.length)]; 
     input.value = fake;
     updateDisplay(input, Array.from(seats).indexOf(input));
     await new Promise(r => setTimeout(r, 80));
